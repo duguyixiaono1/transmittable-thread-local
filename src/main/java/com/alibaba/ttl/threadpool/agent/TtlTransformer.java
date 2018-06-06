@@ -2,27 +2,28 @@ package com.alibaba.ttl.threadpool.agent;
 
 import com.alibaba.ttl.TtlCallable;
 import com.alibaba.ttl.TtlRunnable;
+import javassist.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.reflect.Modifier;
 import java.security.ProtectionDomain;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javassist.CannotCompileException;
-import javassist.ClassPool;
-import javassist.CtClass;
-import javassist.CtMethod;
-import javassist.LoaderClassPath;
-import javassist.NotFoundException;
-
 /**
+ * TTL {@link ClassFileTransformer} of Java Agent
+ *
  * @author Jerry Lee (oldratlee at gmail dot com)
+ * @author wuwen5 (wuwen.55 at aliyun dot com)
+ * @see java.util.concurrent.Executor
+ * @see java.util.concurrent.ExecutorService
+ * @see java.util.concurrent.ThreadPoolExecutor
+ * @see java.util.concurrent.ScheduledThreadPoolExecutor
+ * @see java.util.concurrent.Executors
  * @since 0.9.0
  */
 public class TtlTransformer implements ClassFileTransformer {
@@ -42,11 +43,15 @@ public class TtlTransformer implements ClassFileTransformer {
         EXECUTOR_CLASS_NAMES.add("java.util.concurrent.ScheduledThreadPoolExecutor");
     }
 
+    private static final String FORK_JOIN_TASK_CLASS_NAME = "java.util.concurrent.ForkJoinTask";
+    private static final String TTL_RECURSIVE_ACTION_CLASS_NAME = "com.alibaba.ttl.TtlRecursiveAction";
+    private static final String TTL_RECURSIVE_TASK_CLASS_NAME = "com.alibaba.ttl.TtlRecursiveTask";
+
     private static final byte[] EMPTY_BYTE_ARRAY = {};
 
     @Override
-    public byte[] transform(ClassLoader loader, String classFile, Class<?> classBeingRedefined,
-                            ProtectionDomain protectionDomain, byte[] classFileBuffer) {
+    public byte[] transform(final ClassLoader loader, final String classFile, final Class<?> classBeingRedefined,
+                            final ProtectionDomain protectionDomain, final byte[] classFileBuffer) {
         try {
             // Lambda has no class file, no need to transform, just return.
             if (classFile == null) {
@@ -56,14 +61,24 @@ public class TtlTransformer implements ClassFileTransformer {
             final String className = toClassName(classFile);
             if (EXECUTOR_CLASS_NAMES.contains(className)) {
                 logger.info("Transforming class " + className);
-                CtClass clazz = getCtClass(classFileBuffer, loader);
+                final CtClass clazz = getCtClass(classFileBuffer, loader);
 
                 for (CtMethod method : clazz.getDeclaredMethods()) {
-                    updateMethod(clazz, method);
+                    updateMethodOfExecutorClass(clazz, method);
                 }
+
                 return clazz.toBytecode();
+
+            } else if (FORK_JOIN_TASK_CLASS_NAME.equals(className)) {
+                logger.info("Transforming class " + className);
+                final CtClass clazz = getCtClass(classFileBuffer, loader);
+
+                updateForkJoinTaskClass(className, clazz);
+
+                return clazz.toBytecode();
+
             } else if (TIMER_TASK_CLASS_NAME.equals(className)) {
-                CtClass clazz = getCtClass(classFileBuffer, loader);
+                final CtClass clazz = getCtClass(classFileBuffer, loader);
                 while (true) {
                     String name = clazz.getSuperclass().getName();
                     if (Object.class.getName().equals(name)) {
@@ -77,21 +92,20 @@ public class TtlTransformer implements ClassFileTransformer {
                 }
             }
         } catch (Throwable t) {
-            StringWriter stringWriter = new StringWriter();
-            PrintWriter printWriter = new PrintWriter(stringWriter);
-            t.printStackTrace(printWriter);
-            String msg = "Fail to transform class " + classFile + ", cause: " + stringWriter.toString();
-            logger.severe(msg);
+            String msg = "Fail to transform class " + classFile + ", cause: " + t.toString();
+            if (logger.isLoggable(Level.SEVERE)) {
+                logger.log(Level.SEVERE, msg, t);
+            }
             throw new IllegalStateException(msg, t);
         }
         return EMPTY_BYTE_ARRAY;
     }
 
-    private static String toClassName(String classFile) {
+    private static String toClassName(final String classFile) {
         return classFile.replace('/', '.');
     }
 
-    private static CtClass getCtClass(byte[] classFileBuffer, ClassLoader classLoader) throws IOException {
+    private static CtClass getCtClass(final byte[] classFileBuffer, final ClassLoader classLoader) throws IOException {
         ClassPool classPool = new ClassPool(true);
         if (classLoader == null) {
             classPool.appendClassPath(new LoaderClassPath(ClassLoader.getSystemClassLoader()));
@@ -104,7 +118,7 @@ public class TtlTransformer implements ClassFileTransformer {
         return clazz;
     }
 
-    private static void updateMethod(CtClass clazz, CtMethod method) throws NotFoundException, CannotCompileException {
+    private static void updateMethodOfExecutorClass(final CtClass clazz, final CtMethod method) throws NotFoundException, CannotCompileException {
         if (method.getDeclaringClass() != clazz) {
             return;
         }
@@ -130,5 +144,38 @@ public class TtlTransformer implements ClassFileTransformer {
         if (insertCode.length() > 0) {
             method.insertBefore(insertCode.toString());
         }
+    }
+
+    private static void updateForkJoinTaskClass(final String className, final CtClass clazz) throws CannotCompileException, NotFoundException {
+        // add new field
+        final String capturedFieldName = "captured$field$add$by$ttl";
+        final CtField capturedField = CtField.make("private final java.lang.Object " + capturedFieldName + ";", clazz);
+        clazz.addField(capturedField, "com.alibaba.ttl.TransmittableThreadLocal.Transmitter.capture();");
+        logger.info("add new field " + capturedFieldName + " to class " + className);
+
+        final String doExec_methodName = "doExec";
+        final CtMethod doExecMethod = clazz.getDeclaredMethod(doExec_methodName);
+        final CtMethod new_doExecMethod = CtNewMethod.copy(doExecMethod, doExec_methodName, clazz, null);
+
+        // rename original doExec method, and set to private method(avoid reflect out renamed method unexpectedly)
+        final String original_doExec_method_rename = "original$doExec$method$renamed$by$ttl";
+        doExecMethod.setName(original_doExec_method_rename);
+        doExecMethod.setModifiers(doExecMethod.getModifiers() & ~Modifier.PUBLIC /* remove public */ | Modifier.PRIVATE /* add private */);
+
+        // set new doExec method implementation
+        final String code = "{\n" +
+                // do nothing/directly return, if is TTL ForkJoinTask instance
+                "if (this instanceof " + TTL_RECURSIVE_ACTION_CLASS_NAME + " || this instanceof " + TTL_RECURSIVE_TASK_CLASS_NAME + ") {\n" +
+                "    return " + original_doExec_method_rename + "($$);\n" +
+                "}\n" +
+                "java.lang.Object backup = com.alibaba.ttl.TransmittableThreadLocal.Transmitter.replay(" + capturedFieldName + ");\n" +
+                "try {\n" +
+                "    return " + original_doExec_method_rename + "($$);\n" +
+                "} finally {\n" +
+                "    com.alibaba.ttl.TransmittableThreadLocal.Transmitter.restore(backup);\n" +
+                "}\n" + "}";
+        new_doExecMethod.setBody(code);
+        clazz.addMethod(new_doExecMethod);
+        logger.info("insert code around method " + doExecMethod + " of class " + className + ": " + code);
     }
 }

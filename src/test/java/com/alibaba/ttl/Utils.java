@@ -1,9 +1,6 @@
 package com.alibaba.ttl;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
@@ -62,7 +59,24 @@ public final class Utils {
         System.out.println(tag + " After Run:");
         Utils.print(ttlInstances);
 
-        return Utils.copied(ttlInstances);
+        return Utils.captured(ttlInstances);
+    }
+
+    public static Map<String, Object> modifyValuesExistInTtlInstances(String tag, ConcurrentMap<String, TransmittableThreadLocal<String>> ttlInstances) {
+        System.out.println(tag + " Before Run:");
+        Utils.print(ttlInstances);
+        System.out.println();
+
+        // 1. modify the parent key
+        TransmittableThreadLocal<String> ttl = ttlInstances.get(PARENT_MODIFIED_IN_CHILD);
+        String value = ttl.get() + tag; // modify value
+        ttl.set(value);
+
+        // store value in task
+        System.out.println(tag + " After Run:");
+        Utils.print(ttlInstances);
+
+        return Utils.captured(ttlInstances);
     }
 
     public static <T> void print(ConcurrentMap<String, TransmittableThreadLocal<T>> ttlInstances) {
@@ -73,26 +87,35 @@ public final class Utils {
         }
     }
 
-    public static <T> Map<String, Object> copied(ConcurrentMap<String, TransmittableThreadLocal<T>> ttlInstances) {
-        Map<String, Object> copiedContent = new HashMap<>();
+    public static <T> Map<String, Object> captured(ConcurrentMap<String, TransmittableThreadLocal<T>> ttlInstances) {
+        Map<String, Object> capturedContent = new HashMap<>();
         for (Map.Entry<String, TransmittableThreadLocal<T>> entry : ttlInstances.entrySet()) {
             String key = entry.getKey();
             T value = entry.getValue().get();
             // store value in task
             if (null != value) {
-                copiedContent.put(key, value);
+                capturedContent.put(key, value);
             }
         }
-        return copiedContent;
+        return capturedContent;
     }
 
-    public static void assertTtlInstances(Map<String, Object> copied, String... asserts) {
+    public static void assertTtlInstances(Map<String, Object> captured, String... asserts) {
+        final String message = "Assert Fail:\ncaptured: " + captured + "\n asserts: " + Arrays.toString(asserts);
+
         if (asserts.length % 2 != 0) {
-            throw new IllegalStateException("should even count!");
+            throw new IllegalStateException("should even count! " + message);
         }
-        assertEquals(asserts.length / 2, copied.size());
+
+        assertEquals(asserts.length / 2, captured.size());
+
         for (int i = 0; i < asserts.length; i += 2) {
-            assertEquals(asserts[i], copied.get(asserts[i + 1]));
+            final String expectedValue = asserts[i];
+
+            final String ttlKey = asserts[i + 1];
+            Object actual = captured.get(ttlKey);
+
+            assertEquals(message, expectedValue, actual);
         }
     }
 

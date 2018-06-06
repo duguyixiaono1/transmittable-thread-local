@@ -5,12 +5,7 @@ import com.alibaba.ttl.testmodel.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -20,7 +15,7 @@ import static com.alibaba.ttl.Utils.PARENT_AFTER_CREATE_TTL_TASK;
 import static com.alibaba.ttl.Utils.PARENT_MODIFIED_IN_CHILD;
 import static com.alibaba.ttl.Utils.PARENT_UNMODIFIED_IN_CHILD;
 import static com.alibaba.ttl.Utils.assertTtlInstances;
-import static com.alibaba.ttl.Utils.copied;
+import static com.alibaba.ttl.Utils.captured;
 import static com.alibaba.ttl.Utils.createTestTtlValue;
 import static com.alibaba.ttl.Utils.expandThreadPool;
 import static org.hamcrest.CoreMatchers.containsString;
@@ -45,6 +40,8 @@ public class TtlRunnableTest {
     @AfterClass
     public static void afterClass() throws Exception {
         executorService.shutdown();
+        executorService.awaitTermination(100, TimeUnit.MILLISECONDS);
+        if (!executorService.isTerminated()) fail("Fail to shutdown thread pool");
     }
 
     @Test
@@ -62,14 +59,14 @@ public class TtlRunnableTest {
         ttlRunnable.run();
 
         // child Inheritable
-        assertTtlInstances(task.copied,
+        assertTtlInstances(task.captured,
                 PARENT_UNMODIFIED_IN_CHILD, PARENT_UNMODIFIED_IN_CHILD,
                 PARENT_MODIFIED_IN_CHILD + "1", PARENT_MODIFIED_IN_CHILD,
                 CHILD + "1", CHILD + "1"
         );
 
         // child do not effect parent
-        assertTtlInstances(copied(ttlInstances),
+        assertTtlInstances(captured(ttlInstances),
                 PARENT_UNMODIFIED_IN_CHILD, PARENT_UNMODIFIED_IN_CHILD,
                 PARENT_MODIFIED_IN_CHILD, PARENT_MODIFIED_IN_CHILD, // restored after call!
                 PARENT_AFTER_CREATE_TTL_TASK, PARENT_AFTER_CREATE_TTL_TASK
@@ -92,14 +89,14 @@ public class TtlRunnableTest {
         thread1.join();
 
         // child Inheritable
-        assertTtlInstances(task.copied,
+        assertTtlInstances(task.captured,
                 PARENT_UNMODIFIED_IN_CHILD, PARENT_UNMODIFIED_IN_CHILD,
                 PARENT_MODIFIED_IN_CHILD + "1", PARENT_MODIFIED_IN_CHILD,
                 CHILD + "1", CHILD + "1"
         );
 
         // child do not effect parent
-        assertTtlInstances(copied(ttlInstances),
+        assertTtlInstances(captured(ttlInstances),
                 PARENT_UNMODIFIED_IN_CHILD, PARENT_UNMODIFIED_IN_CHILD,
                 PARENT_MODIFIED_IN_CHILD, PARENT_MODIFIED_IN_CHILD,
                 PARENT_AFTER_CREATE_TTL_TASK, PARENT_AFTER_CREATE_TTL_TASK
@@ -122,14 +119,14 @@ public class TtlRunnableTest {
         submit.get();
 
         // child Inheritable
-        assertTtlInstances(task.copied,
+        assertTtlInstances(task.captured,
                 PARENT_UNMODIFIED_IN_CHILD, PARENT_UNMODIFIED_IN_CHILD,
                 PARENT_MODIFIED_IN_CHILD + "1", PARENT_MODIFIED_IN_CHILD,
                 CHILD + "1", CHILD + "1"
         );
 
         // child do not effect parent
-        assertTtlInstances(copied(ttlInstances),
+        assertTtlInstances(captured(ttlInstances),
                 PARENT_UNMODIFIED_IN_CHILD, PARENT_UNMODIFIED_IN_CHILD,
                 PARENT_MODIFIED_IN_CHILD, PARENT_MODIFIED_IN_CHILD,
                 PARENT_AFTER_CREATE_TTL_TASK, PARENT_AFTER_CREATE_TTL_TASK
@@ -155,13 +152,13 @@ public class TtlRunnableTest {
         submit.get();
 
         // child Inheritable
-        assertTtlInstances(task.copied,
+        assertTtlInstances(task.captured,
                 PARENT_MODIFIED_IN_CHILD + "1", PARENT_MODIFIED_IN_CHILD,
                 CHILD + 1, CHILD + 1
         );
 
         // child do not effect parent
-        assertTtlInstances(copied(ttlInstances),
+        assertTtlInstances(captured(ttlInstances),
                 PARENT_MODIFIED_IN_CHILD, PARENT_MODIFIED_IN_CHILD,
                 PARENT_AFTER_CREATE_TTL_TASK, PARENT_AFTER_CREATE_TTL_TASK
         );
@@ -229,17 +226,17 @@ public class TtlRunnableTest {
         submit.get();
 
         // child Inheritable
-        assertEquals(3, task.copied.size());
-        assertEquals(new FooPojo(PARENT_UNMODIFIED_IN_CHILD, 1), task.copied.get(PARENT_UNMODIFIED_IN_CHILD));
-        assertEquals(new FooPojo(PARENT_MODIFIED_IN_CHILD + "1", 2), task.copied.get(PARENT_MODIFIED_IN_CHILD));
-        assertEquals(new FooPojo(CHILD + 1, 3), task.copied.get(CHILD + 1));
+        assertEquals(3, task.captured.size());
+        assertEquals(new FooPojo(PARENT_UNMODIFIED_IN_CHILD, 1), task.captured.get(PARENT_UNMODIFIED_IN_CHILD));
+        assertEquals(new FooPojo(PARENT_MODIFIED_IN_CHILD + "1", 2), task.captured.get(PARENT_MODIFIED_IN_CHILD));
+        assertEquals(new FooPojo(CHILD + 1, 3), task.captured.get(CHILD + 1));
 
         // child do not effect parent
-        Map<String, Object> copied = copied(ttlInstances);
-        assertEquals(3, copied.size());
-        assertEquals(new FooPojo(PARENT_UNMODIFIED_IN_CHILD, 1), copied.get(PARENT_UNMODIFIED_IN_CHILD));
-        assertEquals(new FooPojo(PARENT_MODIFIED_IN_CHILD, 2), copied.get(PARENT_MODIFIED_IN_CHILD));
-        assertEquals(new FooPojo(PARENT_AFTER_CREATE_TTL_TASK, 4), copied.get(PARENT_AFTER_CREATE_TTL_TASK));
+        Map<String, Object> captured = captured(ttlInstances);
+        assertEquals(3, captured.size());
+        assertEquals(new FooPojo(PARENT_UNMODIFIED_IN_CHILD, 1), captured.get(PARENT_UNMODIFIED_IN_CHILD));
+        assertEquals(new FooPojo(PARENT_MODIFIED_IN_CHILD, 2), captured.get(PARENT_MODIFIED_IN_CHILD));
+        assertEquals(new FooPojo(PARENT_AFTER_CREATE_TTL_TASK, 4), captured.get(PARENT_AFTER_CREATE_TTL_TASK));
     }
 
     @Test

@@ -1,4 +1,4 @@
-package com.alibaba.ttl.threadpool.agent;
+package com.alibaba.ttl.threadpool.agent.check;
 
 import com.alibaba.ttl.TransmittableThreadLocal;
 import com.alibaba.ttl.Utils;
@@ -21,58 +21,51 @@ import static com.alibaba.ttl.Utils.PARENT_AFTER_CREATE_TTL_TASK;
 import static com.alibaba.ttl.Utils.PARENT_MODIFIED_IN_CHILD;
 import static com.alibaba.ttl.Utils.PARENT_UNMODIFIED_IN_CHILD;
 import static com.alibaba.ttl.Utils.assertTtlInstances;
-import static com.alibaba.ttl.Utils.copied;
+import static com.alibaba.ttl.Utils.captured;
 import static com.alibaba.ttl.Utils.createTestTtlValue;
 import static com.alibaba.ttl.Utils.expandThreadPool;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.fail;
 
 /**
  * @author Jerry Lee (oldratlee at gmail dot com)
+ * @author wuwen5 (wuwen.55 at aliyun dot com)
+ * @see com.alibaba.ttl.threadpool.agent.TtlTransformer
  */
-public final class AgentCheck {
+public final class ExecutorClassesAgentCheck {
 
-    private AgentCheck() {
+    private ExecutorClassesAgentCheck() {
         throw new InstantiationError("Must not instantiate this class");
     }
 
-    public static void main(String[] args) {
-        try {
-            ThreadPoolExecutor executorService = new ThreadPoolExecutor(3, 3,
-                    10L, TimeUnit.SECONDS,
-                    new LinkedBlockingQueue<>());
-            ScheduledThreadPoolExecutor scheduledExecutorService = new ScheduledThreadPoolExecutor(3);
+    public static void main(String[] args) throws Exception {
+        ThreadPoolExecutor executorService = new ThreadPoolExecutor(3, 3,
+                10L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>());
+        ScheduledThreadPoolExecutor scheduledExecutorService = new ScheduledThreadPoolExecutor(3);
 
-            expandThreadPool(executorService);
-            expandThreadPool(scheduledExecutorService);
+        expandThreadPool(executorService);
+        expandThreadPool(scheduledExecutorService);
 
-            ConcurrentMap<String, TransmittableThreadLocal<String>> ttlInstances = createTestTtlValue();
+        ConcurrentMap<String, TransmittableThreadLocal<String>> ttlInstances = createTestTtlValue();
 
-            checkExecutorService(executorService, ttlInstances);
-            checkThreadPoolExecutorForRemoveMethod(executorService);
-            checkScheduledExecutorService(scheduledExecutorService, ttlInstances);
+        checkExecutorService(executorService, ttlInstances);
+        checkThreadPoolExecutorForRemoveMethod(executorService);
+        checkScheduledExecutorService(scheduledExecutorService, ttlInstances);
 
-            System.out.println();
-            System.out.println("====================================");
-            System.out.println("Check OK!");
-            System.out.println("====================================");
 
-            executorService.shutdown();
-            scheduledExecutorService.shutdown();
+        executorService.shutdown();
+        scheduledExecutorService.shutdown();
+        if (!executorService.awaitTermination(100, TimeUnit.MILLISECONDS)) fail("Fail to shutdown thread pool");
+        if (!scheduledExecutorService.awaitTermination(100, TimeUnit.MILLISECONDS))
+            fail("Fail to shutdown thread pool");
 
-            if (!executorService.awaitTermination(3, TimeUnit.SECONDS)) {
-                System.out.println("Fail to close ThreadPoolExecutor");
-                System.exit(1);
-            }
-            if (!scheduledExecutorService.awaitTermination(3, TimeUnit.SECONDS)) {
-                System.out.println("Fail to close scheduledExecutorService");
-                System.exit(1);
-            }
-        } catch (Throwable e) {
-            System.out.println("Exception when run AgentCheck: ");
-            e.printStackTrace(System.out);
-            System.exit(2);
-        }
+
+        System.out.println();
+        System.out.println("====================================");
+        System.out.println(ExecutorClassesAgentCheck.class.getSimpleName() + " OK!");
+        System.out.println("====================================");
     }
 
     private static void checkExecutorService(ExecutorService executorService, ConcurrentMap<String, TransmittableThreadLocal<String>> ttlInstances) throws Exception {
@@ -86,17 +79,17 @@ public final class AgentCheck {
 
         Thread.sleep(100);
 
-        System.out.println(task.copied);
+        System.out.println(task.captured);
 
         // child Inheritable
-        Utils.assertTtlInstances(task.copied,
+        Utils.assertTtlInstances(task.captured,
                 PARENT_UNMODIFIED_IN_CHILD, PARENT_UNMODIFIED_IN_CHILD,
                 PARENT_MODIFIED_IN_CHILD + "1", PARENT_MODIFIED_IN_CHILD,
                 CHILD + "1", CHILD + "1"
         );
 
         // child do not effect parent
-        assertTtlInstances(copied(ttlInstances),
+        assertTtlInstances(captured(ttlInstances),
                 PARENT_UNMODIFIED_IN_CHILD, PARENT_UNMODIFIED_IN_CHILD,
                 PARENT_MODIFIED_IN_CHILD, PARENT_MODIFIED_IN_CHILD,
                 PARENT_AFTER_CREATE_TTL_TASK, PARENT_AFTER_CREATE_TTL_TASK
@@ -153,14 +146,14 @@ public final class AgentCheck {
         future.get();
 
         // child Inheritable
-        assertTtlInstances(task.copied,
+        assertTtlInstances(task.captured,
                 PARENT_UNMODIFIED_IN_CHILD, PARENT_UNMODIFIED_IN_CHILD,
                 PARENT_MODIFIED_IN_CHILD + "2", PARENT_MODIFIED_IN_CHILD,
                 CHILD + "2", CHILD + "2"
         );
 
         // child do not effect parent
-        assertTtlInstances(copied(ttlInstances),
+        assertTtlInstances(captured(ttlInstances),
                 PARENT_UNMODIFIED_IN_CHILD, PARENT_UNMODIFIED_IN_CHILD,
                 PARENT_MODIFIED_IN_CHILD, PARENT_MODIFIED_IN_CHILD,
                 PARENT_AFTER_CREATE_TTL_TASK, PARENT_AFTER_CREATE_TTL_TASK

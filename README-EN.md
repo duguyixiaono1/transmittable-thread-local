@@ -1,19 +1,17 @@
-Transmittable ThreadLocal(TTL)
-=====================================
+# 📌 Transmittable ThreadLocal(TTL) 📌
 
 [![Build Status](https://travis-ci.org/alibaba/transmittable-thread-local.svg?branch=master)](https://travis-ci.org/alibaba/transmittable-thread-local)
 [![Windows Build Status](https://img.shields.io/appveyor/ci/oldratlee/transmittable-thread-local/master.svg?label=windows%20build)](https://ci.appveyor.com/project/oldratlee/transmittable-thread-local)
 [![Coverage Status](https://img.shields.io/codecov/c/github/alibaba/transmittable-thread-local/master.svg)](https://codecov.io/gh/alibaba/transmittable-thread-local/branch/master)
-[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.alibaba/transmittable-thread-local/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.alibaba/transmittable-thread-local/)
-[![GitHub release](https://img.shields.io/github/release/alibaba/transmittable-thread-local.svg)](https://github.com/alibaba/transmittable-thread-local/releases)
-[![Dependency Status](https://www.versioneye.com/user/projects/56c0a36218b271002c699dca/badge.svg)](https://www.versioneye.com/user/projects/56c0a36218b271002c699dca)  
+[![Maven Central](https://img.shields.io/maven-central/v/com.alibaba/transmittable-thread-local.svg)](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.alibaba%22%20AND%20a%3A%22transmittable-thread-local%22)
+[![GitHub release](https://img.shields.io/github/release/alibaba/transmittable-thread-local.svg)](https://github.com/alibaba/transmittable-thread-local/releases)  
 [![Join the chat at https://gitter.im/alibaba/transmittable-thread-local](https://badges.gitter.im/alibaba/transmittable-thread-local.svg)](https://gitter.im/alibaba/transmittable-thread-local?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![GitHub issues](https://img.shields.io/github/issues/alibaba/transmittable-thread-local.svg)](https://github.com/alibaba/transmittable-thread-local/issues)
 [![Percentage of issues still open](http://isitmaintained.com/badge/open/alibaba/transmittable-thread-local.svg)](http://isitmaintained.com/project/alibaba/transmittable-thread-local "Percentage of issues still open")
 [![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/alibaba/transmittable-thread-local.svg)](http://isitmaintained.com/project/alibaba/transmittable-thread-local "Average time to resolve an issue")
 [![License](https://img.shields.io/badge/license-Apache%202-4EB1BA.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
 
-:book: English Documentation | [:book: 中文文档](README.md)
+📖 English Documentation | [📖 中文文档](README.md)
 
 ----------------------------------------
 
@@ -21,28 +19,30 @@ Transmittable ThreadLocal(TTL)
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 
 
-- [:wrench: Functions](#wrench-functions)
-- [:art: Requirements](#art-requirements)
-- [:busts_in_silhouette: User Guide](#busts_in_silhouette-user-guide)
+- [🔧 Functions](#-functions)
+- [🎨 Requirements](#-requirements)
+- [👥 User Guide](#-user-guide)
     - [1. simple usage](#1-simple-usage)
     - [2. Transmit value even using thread pool](#2-transmit-value-even-using-thread-pool)
         - [2.1 Decorate `Runnable` and `Callable`](#21-decorate-runnable-and-callable)
         - [2.2 Decorate thread pool](#22-decorate-thread-pool)
-        - [2.3. Use Java Agent to decorate thread pool implementation class](#23-use-java-agent-to-decorate-thread-pool-implementation-class)
-- [:electric_plug: Java API Docs](#electric_plug-java-api-docs)
-- [:cookie: Maven dependency](#cookie-maven-dependency)
-- [:books: Related resources](#books-related-resources)
-    - [Jdk core classes](#jdk-core-classes)
+        - [2.3 Use Java Agent to decorate thread pool implementation class](#23-use-java-agent-to-decorate-thread-pool-implementation-class)
+- [🔌 Java API Docs](#-java-api-docs)
+- [🍪 Maven dependency](#-maven-dependency)
+- [🗿 More documentation](#-more-documentation)
+- [📚 Related resources](#-related-resources)
+    - [JDK core classes](#jdk-core-classes)
     - [Java Agent](#java-agent)
     - [Javassist](#javassist)
+- [👷 Contributors](#-contributors)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ----------------------------------------
 
-# :wrench: Functions
+# 🔧 Functions
 
-:point_right: The missing std Java™ lib(simple &amp; 0-dependency) for middleware,
+👉 The missing std Java™ lib(simple &amp; 0-dependency) for framework/middleware,
 transmitting ThreadLocal value between threads even using thread pool like components.
 Support `Java` 9/8.  
 \# if you need `Java` 6/7 support, please use version `2.2.x`.  
@@ -55,14 +55,14 @@ Application need transmit value from the time task is created to the time task i
 
 If you have problem or question, please [submit Issue](https://github.com/alibaba/transmittable-thread-local/issues) or play [fork](https://github.com/alibaba/transmittable-thread-local/fork) and pull request dance.
 
-# :art: Requirements
+# 🎨 Requirements
 
 The Requirements listed below is also why I sort out `TTL` in my work. 
 
 * Application container or high layer framework transmit information to low layer sdk.
 * Transmit context to logging without application code aware.
 
-# :busts_in_silhouette: User Guide
+# 👥 User Guide
 
 ## 1. simple usage
 
@@ -88,8 +88,8 @@ The solution is below usage.
 
 ### 2.1 Decorate `Runnable` and `Callable`
 
-Decorate input `Runnable` and `Callable` by [`com.alibaba.ttl.TtlRunnable`](/src/main/java/com/alibaba/ttl/TtlRunnable.java)
-and [`com.alibaba.ttl.TtlCallable`](src/main/java/com/alibaba/ttl/TtlCallable.java).
+Decorate input `Runnable` and `Callable` by [`TtlRunnable`](/src/main/java/com/alibaba/ttl/TtlRunnable.java)
+and [`TtlCallable`](src/main/java/com/alibaba/ttl/TtlCallable.java).
 
 Sample code:
 
@@ -137,7 +137,7 @@ Util class `com.alibaba.ttl.threadpool.TtlExecutors` has below methods:
 
 * `getTtlExecutor`: decorate interface `Executor`
 * `getTtlExecutorService`: decorate interface `ExecutorService`
-* `ScheduledExecutorService`: decorate interface `ScheduledExecutorService`
+* `getTtlScheduledExecutorService`: decorate interface `ScheduledExecutorService`
 
 Sample code:
 
@@ -160,7 +160,7 @@ executorService.submit(call);
 String value = parent.get(); 
 ```
 
-### 2.3. Use Java Agent to decorate thread pool implementation class
+### 2.3 Use Java Agent to decorate thread pool implementation class
 
 In this usage, transmission is transparent\(no decoration operation\).
 
@@ -195,7 +195,7 @@ Add start options on Java command:
 
 **NOTE**： 
 
-* Agent modify the jdk classes, add code refer to the class of `TTL`, so the jar of `TTL Agent` should add to `bootclasspath`.
+* Agent modify the `JDK` classes, add code refer to the class of `TTL`, so the jar of `TTL Agent` should add to `bootclasspath`.
 * `TTL Agent` modify the class by `javassist`, so the Jar of `javassist` should add to `bootclasspath` too.
 
 Java command example:
@@ -210,36 +210,48 @@ java -Xbootclasspath/a:transmittable-thread-local-2.0.0.jar \
 Run the script [`run-agent-demo.sh`](run-agent-demo.sh)
 to start demo of "Use Java Agent to decorate thread pool implementation class".
 
-# :electric_plug: Java API Docs
+# 🔌 Java API Docs
 
 The current version Java API documentation: <http://alibaba.github.io/transmittable-thread-local/apidocs/>
 
-# :cookie: Maven dependency
+# 🍪 Maven dependency
 
 ```xml
 <dependency>
 	<groupId>com.alibaba</groupId>
 	<artifactId>transmittable-thread-local</artifactId>
-	<version>2.2.0</version>
+	<version>2.4.0</version>
 </dependency>
 ```
 
 Check available version at [search.maven.org](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22com.alibaba%22%20AND%20a%3A%22transmittable-thread-local%22).
 
-# :books: Related resources
+# 🗿 More documentation
 
-## Jdk core classes
+- [🎓 Developer Guide](docs/developer-guide-en.md)
 
-* [WeakHashMap](https://docs.oracle.com/javase/8/docs/api/java/util/WeakHashMap.html)
-* [InheritableThreadLocal](https://docs.oracle.com/javase/8/docs/api/java/lang/InheritableThreadLocal.html)
+# 📚 Related resources
+
+## JDK core classes
+
+- [WeakHashMap](https://docs.oracle.com/javase/8/docs/api/java/util/WeakHashMap.html)
+- [InheritableThreadLocal](https://docs.oracle.com/javase/8/docs/api/java/lang/InheritableThreadLocal.html)
 
 ## Java Agent
 
-* [Java Agent规范](https://docs.oracle.com/javase/8/docs/api/java/lang/instrument/package-summary.html)
-* [Java SE 6 新特性: Instrumentation 新功能](http://www.ibm.com/developerworks/cn/java/j-lo-jse61/)
-* [Creation, dynamic loading and instrumentation with javaagents](http://dhruba.name/2010/02/07/creation-dynamic-loading-and-instrumentation-with-javaagents/)
-* [JavaAgent加载机制分析](http://alipaymiddleware.com/jvm/javaagent%E5%8A%A0%E8%BD%BD%E6%9C%BA%E5%88%B6%E5%88%86%E6%9E%90/)
+- [Java Agent规范](https://docs.oracle.com/javase/8/docs/api/java/lang/instrument/package-summary.html)
+- [Java SE 6 新特性: Instrumentation 新功能](http://www.ibm.com/developerworks/cn/java/j-lo-jse61/)
+- [Creation, dynamic loading and instrumentation with javaagents](http://dhruba.name/2010/02/07/creation-dynamic-loading-and-instrumentation-with-javaagents/)
+- [JavaAgent加载机制分析](http://alipaymiddleware.com/jvm/javaagent%E5%8A%A0%E8%BD%BD%E6%9C%BA%E5%88%B6%E5%88%86%E6%9E%90/)
 
 ## Javassist
 
-* [Getting Started with Javassist](http://www.csg.ci.i.u-tokyo.ac.jp/~chiba/javassist/tutorial/tutorial.html)
+- [Getting Started with Javassist](http://www.csg.ci.i.u-tokyo.ac.jp/~chiba/javassist/tutorial/tutorial.html)
+
+# 👷 Contributors
+
+- Jerry Lee \<oldratlee at gmail dot com> [@oldratlee](https://github.com/oldratlee)
+- Yang Fang \<snoop.fy at gmail dot com> [@driventokill](https://github.com/driventokill)
+- wuwen \<wuwen.55 at aliyun dot com> [@wuwen5](https://github.com/wuwen5)
+- 牧瑾 \<351450944 at qq dot com> [@LNAmp](https://github.com/LNAmp)
+- Your name here :-)
